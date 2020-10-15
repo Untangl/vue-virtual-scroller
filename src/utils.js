@@ -5,9 +5,11 @@ if (typeof window !== 'undefined') {
   try {
     var opts = Object.defineProperty({}, 'passive', {
       get () {
-        supportsPassive = true
+        supportsPassive = true;
+        return supportsPassive;
       },
     })
     window.addEventListener('test', null, opts)
-  } catch (e) {}
+  } catch (e) { //do nothing
+     }
 }

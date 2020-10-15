@@ -25,6 +25,14 @@ Blazing fast scrolling of any amount of data | [Live demo](https://akryum.github
   - [DynamicScrollerItem](#dynamicscrolleritem)
   - [IdState](#idstate)
 
+# Untangl Modifications
+
+Our problem was to virtual scroll a grid of many thousands of rows and more columns than would fit across the viewport. We also wanted the header row to be frozen and scroll synchronously left to right as the user scrolled the body of the grid.
+
+To achieve this we have:
+* added in a hook for a horizontal scroll event that gets emitted
+* put an explicit wrapper width on the grid container
+
 # Installation
 
 ```

@@ -1,51 +1,58 @@
 <template>
   <div
-    v-observe-visibility="handleVisibilityChange"
-    class="vue-recycle-scroller"
-    :class="{
+      v-observe-visibility="handleVisibilityChange"
+      class="vue-recycle-scroller"
+      :class="{
       ready,
       'page-mode': pageMode,
       [`direction-${direction}`]: true,
     }"
-    @scroll.passive="handleScroll"
+      @scroll.passive="handleScroll"
   >
     <div
-      v-if="$slots.before"
-      class="vue-recycle-scroller__slot"
+        v-if="$slots.before"
+        class="vue-recycle-scroller__slot"
     >
       <slot
-        name="before"
+          name="before"
       />
     </div>
 
     <div
-      ref="wrapper"
-      :style="{ [direction === 'vertical' ? 'minHeight' : 'minWidth']: totalSize + 'px' }"
-      class="vue-recycle-scroller__item-wrapper"
+        ref="wrapper"
+        :style="{
+      [direction === 'vertical' ? 'minHeight' : 'minWidth']: totalSize + 'px',
+      [direction === 'vertical' ? 'minWidth' : 'minHeight']: wrapperSize + 'px',
+      }"
+        class="vue-recycle-scroller__item-wrapper"
     >
       <div
-        v-for="view of pool"
-        :key="view.nr.id"
-        :style="ready ? { transform: `translate${direction === 'vertical' ? 'Y' : 'X'}(${view.position}px)` } : null"
-        class="vue-recycle-scroller__item-view"
-        :class="{ hover: hoverKey === view.nr.key }"
-        @mouseenter="hoverKey = view.nr.key"
-        @mouseleave="hoverKey = null"
+          v-for="view of pool"
+          :key="view.nr.id"
+          :style="ready ? { transform: `translate${direction === 'vertical' ? 'Y' : 'X'}(${view.position}px)` } : null"
+          class="vue-recycle-scroller__item-view"
+
       >
+        <!--
+                :class="{ hover: hoverKey === view.nr.key }"
+                @mouseenter="hoverKey = view.nr.key"
+                @mouseleave="hoverKey = null"
+        -->
+
         <slot
-          :item="view.item"
-          :index="view.nr.index"
-          :active="view.nr.used"
+            :item="view.item"
+            :index="view.nr.index"
+            :active="view.nr.used"
         />
       </div>
     </div>
 
     <div
-      v-if="$slots.after"
-      class="vue-recycle-scroller__slot"
+        v-if="$slots.after"
+        class="vue-recycle-scroller__slot"
     >
       <slot
-        name="after"
+          name="after"
       />
     </div>
 
@@ -78,6 +85,11 @@ export default {
     ...props,
 
     itemSize: {
+      type: Number,
+      default: null,
+    },
+
+    wrapperSize: {
       type: Number,
       default: null,
     },
@@ -182,6 +194,7 @@ export default {
     this.$_unusedViews = new Map()
     this.$_scrollDirty = false
     this.$_lastUpdateScrollPosition = 0
+    this.$_lastUpdateScrollLeftPosition = 0
 
     // In SSR mode, we also prerender the same number of item for the first render
     // to avoir mismatch between server and client templates
@@ -246,11 +259,31 @@ export default {
       this.$emit('resize')
       if (this.ready) this.updateVisibleItems(false)
     },
+    /**
+     * Hooked into the scroll event to see if there is a change is X axis scroll position
+     * @param event
+     * @returns {{positionLeft: number, positionChange: boolean}}
+     */
+    checkLeftScroll (event) {
+      if (event && event.target) { //needed as event can not have a target (fast scrolling issue?)
+        const newLeft = event.target.scrollLeft;
+        if (newLeft !== this.$_lastUpdateScrollLeftPosition) {
+          this.$_lastUpdateScrollLeftPosition = newLeft;
+          return { positionChange: true, positionLeft: newLeft };
+        }
+      }
+      return { positionChange: false, positionLeft: this.$_lastUpdateScrollLeftPosition };
+    },
 
     handleScroll (event) {
       if (!this.$_scrollDirty) {
         this.$_scrollDirty = true
+        const { positionChange, positionLeft } = this.checkLeftScroll(event);
+        if (positionChange) {
+          this.$emit('syncScroll', positionLeft);
+        }
         requestAnimationFrame(() => {
+          // console.log(`SCROLL Left:${event.target.scrollLeft} Top:${event.target.scrollTop} event:`)
           this.$_scrollDirty = false
           const { continuous } = this.updateVisibleItems(false, true)
 
@@ -390,15 +423,15 @@ export default {
             // Update view item index
             if (checkItem) {
               view.nr.index = items.findIndex(
-                item => keyField ? item[keyField] === view.item[keyField] : item === view.item,
+                  item => keyField ? item[keyField] === view.item[keyField] : item === view.item,
               )
             }
 
             // Check if index is still in visible range
             if (
-              view.nr.index === -1 ||
-              view.nr.index < startIndex ||
-              view.nr.index >= endIndex
+                view.nr.index === -1 ||
+                view.nr.index < startIndex ||
+                view.nr.index >= endIndex
             ) {
               this.unuseView(view)
             }
